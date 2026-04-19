@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: ivolve
+data:
+  DB_HOST: "mysql-service"   # hostname of the MySQL StatefulSet service
+  DB_USER: "ivolve"          # user that connects to the ivolve database
