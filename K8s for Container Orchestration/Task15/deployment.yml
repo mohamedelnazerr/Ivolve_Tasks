@@ -24,7 +24,7 @@ spec:
             claimName: nodejs-pvc
       containers:
         - name: nodejs-app
-          image: your-dockerhub-user/nodejs-app:latest
+          image: mohamedelnazerr/ivolve-app:latest
           ports:
             - containerPort: 3000
           envFrom:
