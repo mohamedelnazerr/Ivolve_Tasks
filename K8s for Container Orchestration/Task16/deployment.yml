@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-app
+  namespace: ivolve
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nodejs-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-app
+    spec:
+      tolerations:
+        - key: "node"
+          operator: "Equal"
+          value: "worker"
+          effect: "NoSchedule"
+      initContainers:
+        - name: mysql-init
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: DB_PASSWORD
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: DB_HOST
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: mysql-config
+                  key: DB_USER
+          command:
+            - bash
+            - -c
+            - |
+              echo "Waiting for MySQL to be ready..."
+              until mysql -h mysql-headless -u root -p$MYSQL_ROOT_PASSWORD -e "SELECT 1;" &>/dev/null; do
+                echo "MySQL not ready yet, retrying in 5s..."
+                sleep 5
+              done
+              echo "MySQL is ready! Setting up database..."
+              mysql -h mysql-headless -u root -p$MYSQL_ROOT_PASSWORD <<EOF
+              CREATE DATABASE IF NOT EXISTS ivolve;
+              CREATE USER IF NOT EXISTS '$DB_USER'@'%' IDENTIFIED BY '$DB_PASSWORD';
+              GRANT ALL PRIVILEGES ON ivolve.* TO '$DB_USER'@'%';
+              FLUSH PRIVILEGES;
+              EOF
+              echo "Database setup complete!"
+      containers:
+        - name: nodejs-app
+          image: mohamedelnazerr/ivolve-app:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: mysql-config
+            - secretRef:
+                name: mysql-secret
+          volumeMounts:
+            - name: app-storage
+              mountPath: /app/data
+      volumes:
+        - name: app-storage
+          persistentVolumeClaim:
+            claimName: app-logs-pvc
