@@ -1,0 +1,42 @@
+# 1. Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-sa
+  namespace: ivolve
+---
+# 2. Secret for Service Account token
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jenkins-sa-token
+  namespace: ivolve
+  annotations:
+    kubernetes.io/service-account.name: jenkins-sa
+type: kubernetes.io/service-account-token
+---
+# 3. Role - read only on pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: ivolve
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+# 4. RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-sa-pod-reader
+  namespace: ivolve
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-sa
+    namespace: ivolve
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
